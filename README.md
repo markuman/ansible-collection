@@ -2,6 +2,14 @@
 
 This is my fork of [inwx.collection](https://github.com/inwx/ansible-collection).
 
+Using my fork, you must use `markuman.inwx.dns` and `markuman.inwx.session`. Therefore you can use both collections in parallel.
+
+Install from github
+
+```
+ansible-galaxy collection install git+https://github.com/markuman/inwx.collection.git
+```
+
 ## Differences between official collection an my fork
 
 * Deleting record not working? [#20](https://github.com/inwx/ansible-collection/issues/20)
@@ -12,6 +20,37 @@ This is my fork of [inwx.collection](https://github.com/inwx/ansible-collection)
 ## others
 
 * Add partiell diff support
+
+```
+TASK [create a record] **********************************************************
+--- before
++++ after
+@@ -1 +1,6 @@
+-[]
++- content: 127.0.0.123
++  id: 1442086446
++  name: nureintest.osuv.de
++  priority: 0
++  ttl: 300
++  type: A
+
+changed: [localhost]
+
+TASK [delete a record] **********************************************************
+--- before
++++ after
+@@ -1,6 +1 @@
+-- content: 127.0.0.123
+-  id: 1442086446
+-  name: nureintest.osuv.de
+-  priority: 0
+-  ttl: 300
+-  type: A
++[]
+
+changed: [localhost]
+```
+
 * `markuman.inwx.session` does not work anymore with the shared secret. instead of, you must pass directly the valid totp value to the module
 
 ```yml
