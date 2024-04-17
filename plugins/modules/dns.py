@@ -683,6 +683,7 @@ import string
 import struct
 import sys
 import time
+import yaml
 
 # The requests may not be installed.
 # We check that further in the run_module function and install it if necessary
@@ -1263,6 +1264,15 @@ def check_and_install_module(module, python_module_name, apt_module_name):
                 msg="{0} must be installed and visible from {1}.".format(python_module_name, sys.executable))
 
 
+def diff_handler(before=[], after=[]):
+    before.sort()
+    after.sort()
+    return dict(
+        before=yaml.safe_dump(before),
+        after=yaml.safe_dump(after)
+    )
+
+
 def run_module():
     module = AnsibleModule(
         argument_spec=dict(
@@ -1330,7 +1340,7 @@ def run_module():
                 if not module.check_mode:
                     for found_record in found_records:
                         delete_record(module, int(found_record['id']))
-                module.exit_json(changed=True)
+                module.exit_json(changed=True, diff=diff_handler(before=found_records))
         else:
             # record doesn't exist, nothing to delete.
             module.exit_json(changed=False)
@@ -1373,14 +1383,14 @@ def run_module():
             else:
                 # identical record exists.
                 module.exit_json(changed=bool(module.params['solo']) and solomode_deletions,
-                                 result={'record': found_record})
+                                 result={'record': found_record}, diff=diff_handler())
         else:
             # record doesn't exist, create it.
             if module.check_mode:
                 created_record = build_check_mode_record(module)
             else:
                 created_record = create_record(module)
-            module.exit_json(changed=True, result={'record': created_record})
+            module.exit_json(changed=True, diff=diff_handler(after=[created_record]), result={'record': created_record})
 
 
 def main():
