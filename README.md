@@ -64,7 +64,7 @@ changed: [localhost]
   markuman.inwx.session:
     username: 'user'
     password: 'pass'
-    totp: "{{ totp.stdout }}"
+    tfa_token: "{{ totp.stdout }}"
    register: temp_session_output
 
 - name: Ensure A record 'test' exists with prefetched API session
