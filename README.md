@@ -19,6 +19,8 @@ ansible-galaxy collection install git+https://github.com/markuman/inwx.collectio
 
 ## others
 
+* remove duplicated APIClass code
+  * use `pip install inwx-domrobot` as depencencies for both modules.
 * Add partiell diff support when running `ansible-playbook ... --diff`
 
 ```
