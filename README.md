@@ -19,7 +19,7 @@ ansible-galaxy collection install git+https://github.com/markuman/inwx.collectio
 
 ## others
 
-* Add partiell diff support
+* Add partiell diff support when running `ansible-playbook ... --diff`
 
 ```
 TASK [create a record] **********************************************************
