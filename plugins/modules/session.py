@@ -42,10 +42,9 @@ options:
         type: str
         required: true
         aliases: [ pass ]
-    shared_secret:
+    totp:
         description:
-            - INWX Account Shared Secret
-            - Required for the generation of a TOTP.
+            - totp.
         type: str
         required: false
     username:
@@ -67,7 +66,7 @@ EXAMPLES = '''
   inwx.collection.session:
     username: test_user
     password: test_password
-    shared_secret: test_shared_secret
+    totp: 123456
 
 - name: Get a session for the OTE API
   inwx.collection.session:
@@ -85,9 +84,6 @@ session:
 
 from ansible.module_utils.basic import AnsibleModule
 
-import base64
-import hashlib
-import hmac
 import json
 import random
 import string
@@ -140,25 +136,21 @@ class ApiClient:
         self.customer = None
         self.api_session = requests.Session()
 
-    def login(self, username, password, shared_secret=None):
+    def login(self, username, password, totp=None):
         """Performs a login at the api and saves the session cookie for following api calls.
 
         Args:
             username: Your username.
             password: Your password.
-            shared_secret: A secret used to generate a secret code to solve 2fa challenges when 2fa is enabled. This is
-                the code/string encoded in the QR-Code you scanned with your google authenticator app when you enabled 2fa.
-                If you don't have this secret anymore, disable and re-enable 2fa for your account but this time save the
-                code/string encoded in the QR-Code.
+            totp: 123456
         Returns:
             The api response body parsed as a dict.
         Raises:
-            Exception: Username and password must not be None.
-            Exception: Api requests two factor challenge but no shared secret is given. Aborting.
+            Exception: Username, password and totp must not be None.
         """
 
-        if username is None or password is None:
-            raise Exception('Username and password must not be None.')
+        if username is None or password is None or totp is None:
+            raise Exception('Username, password and totp must not be None.')
 
         params = {
             'lang': self.language,
@@ -168,10 +160,7 @@ class ApiClient:
 
         login_result = self.call_api('account.login', params)
         if login_result['code'] == 1000 and 'tfa' in login_result['resData'] and login_result['resData']['tfa'] != '0':
-            if shared_secret is None:
-                raise Exception('Api requests two factor challenge but no shared secret is given. Aborting.')
-            secret_code = self.get_secret_code(shared_secret)
-            unlock_result = self.call_api('account.unlock', {'tan': secret_code})
+            unlock_result = self.call_api('account.unlock', {'tan': totp})
             if unlock_result['code'] != 1000:
                 return unlock_result
 
@@ -244,35 +233,6 @@ class ApiClient:
             return response.json()
 
     @staticmethod
-    def get_secret_code(shared_secret):
-        """Generates a secret code for 2fa with a shared secret.
-
-        Args:
-            shared_secret: The shared secret used to generate the secret code.
-        Returns:
-            A secret code used to solve 2fa challenges.
-        Raises:
-            Exception: Shared secret must not be None.
-        """
-
-        if shared_secret is None:
-            raise Exception('Shared secret must not be None.')
-
-        key = base64.b32decode(shared_secret, True)
-        msg = struct.pack(">Q", int(time.time()) // 30)
-        hmac_hash = hmac.new(key, msg, hashlib.sha1).digest()
-        if sys.version_info.major == 3:
-            o = hmac_hash[19] & 15
-        else:
-            o = ord(hmac_hash[19]) & 15
-        hmac_hash = (struct.unpack(">I", hmac_hash[o:o + 4])[0] & 0x7fffffff) % 1000000
-        return hmac_hash
-
-    @staticmethod
-    def get_random_string(size=12):
-        return ''.join(random.choice(string.ascii_letters + string.digits) for x in range(size))
-
-    @staticmethod
     def get_python_version():
         return '.'.join(tuple(str(x) for x in sys.version_info))
 
@@ -283,7 +243,7 @@ def run_module():
             api_env=dict(type='str', reduired=False, default='live', choices=['live', 'ote']),
             username=dict(type='str', required=True, aliases=['user'], no_log=True),
             password=dict(type='str', required=True, aliases=['pass'], no_log=True),
-            shared_secret=dict(type='str', required=False, no_log=True),
+            totp=dict(type='int', required=False, no_log=True),
         ),
         supports_check_mode=True
     )
@@ -296,7 +256,7 @@ def run_module():
     client = ApiClient(api_url=api_url, api_type=ApiType.JSON_RPC, debug_mode=True)
 
     login_result = client.login(str(module.params['username']), str(module.params['password']),
-                                module.params['shared_secret'])
+                                module.params['totp'])
 
     if login_result['code'] != 1000:
         module.fail_json(msg='API error.', result={'api_response': login_result})
